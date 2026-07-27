@@ -16,6 +16,7 @@ import {
   addRakeback,
   deleteSession,
   deleteRakeback,
+  addMonth,
 } from './actions';
 import { DashboardData } from './page';
 import { calculateStakeStats } from '@/lib/utils';
@@ -41,12 +42,11 @@ export default function DashboardClient({
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       }),
     ),
-  )
-    .sort()
-    .reverse();
+  );
 
-  const [manualMonths, setManualMonths] = useState<string[]>([]);
-  const allMonths = Array.from(new Set([...dataMonths, ...manualMonths]))
+  const allMonths = Array.from(
+    new Set([...dataMonths, ...initialData.customMonths]),
+  )
     .sort()
     .reverse();
 
@@ -56,8 +56,10 @@ export default function DashboardClient({
       new Date().toISOString().slice(0, 7),
     );
     if (newMonth && !allMonths.includes(newMonth)) {
-      setManualMonths((prev) => [...prev, newMonth]);
-      setActiveTab(newMonth);
+      startTransition(async () => {
+        await addMonth(newMonth);
+        setActiveTab(newMonth);
+      });
     }
   };
 
@@ -190,7 +192,7 @@ export default function DashboardClient({
               activeTab === 'overall' ? 'text-emerald-400' : 'text-slate-500'
             }
           />
-          <span>Lifetime Overview</span>
+          <span>Dashboard</span>
         </button>
 
         <div className='flex gap-2 overflow-x-auto items-center'>
@@ -212,6 +214,7 @@ export default function DashboardClient({
           ))}
           <button
             onClick={handleAddMonth}
+            disabled={isPending}
             className='px-3 py-1.5 font-medium text-xs bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 rounded-lg transition'
           >
             + Add Month
@@ -376,8 +379,12 @@ export default function DashboardClient({
                   <tr className='bg-slate-800/40 text-slate-200'>
                     <td className='px-6 py-3 font-bold'>TOTALS</td>
                     <td className='px-6 py-3'></td>
-                    <td className='px-6 py-3'></td>
-                    <td className='px-6 py-3'></td>
+                    {activeTab !== 'overall' && (
+                      <>
+                        <td className='px-6 py-3'></td>
+                        <td className='px-6 py-3'></td>
+                      </>
+                    )}
                     <td
                       className={`px-6 py-3 text-right font-bold ${rawSessionProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
                     >
@@ -392,8 +399,16 @@ export default function DashboardClient({
                   <tr>
                     <th className='px-6 py-4'>Date</th>
                     <th className='px-6 py-4'>Stake</th>
-                    <th className='px-6 py-4 text-right'>Starting Bankroll</th>
-                    <th className='px-6 py-4 text-right'>Ending Bankroll</th>
+                    {activeTab !== 'overall' && (
+                      <>
+                        <th className='px-6 py-4 text-right'>
+                          Starting Bankroll
+                        </th>
+                        <th className='px-6 py-4 text-right'>
+                          Ending Bankroll
+                        </th>
+                      </>
+                    )}
                     <th className='px-6 py-4 text-right'>Profit</th>
                     <th className='px-6 py-4 text-right'>Hours</th>
                     {activeTab !== 'overall' && (
@@ -405,7 +420,7 @@ export default function DashboardClient({
                   {filteredSessions.length === 0 && (
                     <tr>
                       <td
-                        colSpan={activeTab === 'overall' ? 6 : 7}
+                        colSpan={activeTab === 'overall' ? 4 : 7}
                         className='px-6 py-8 text-center text-slate-500'
                       >
                         No sessions recorded.
@@ -429,12 +444,16 @@ export default function DashboardClient({
                         <td className='px-6 py-4 font-medium text-slate-200'>
                           {session.stake}
                         </td>
-                        <td className='px-6 py-4 text-right text-slate-300'>
-                          ${session.startingBalance.toFixed(2)}
-                        </td>
-                        <td className='px-6 py-4 text-right text-slate-300'>
-                          ${session.endingBalance.toFixed(2)}
-                        </td>
+                        {activeTab !== 'overall' && (
+                          <>
+                            <td className='px-6 py-4 text-right text-slate-300'>
+                              ${session.startingBalance.toFixed(2)}
+                            </td>
+                            <td className='px-6 py-4 text-right text-slate-300'>
+                              ${session.endingBalance.toFixed(2)}
+                            </td>
+                          </>
+                        )}
                         <td
                           className={`px-6 py-4 text-right font-medium ${profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
                         >
@@ -707,4 +726,3 @@ export default function DashboardClient({
     </div>
   );
 }
-

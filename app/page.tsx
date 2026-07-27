@@ -1,5 +1,5 @@
 // app/page.tsx
-import { getPokerData } from './actions';
+import { prisma } from '@/lib/prisma';
 import DashboardClient from './DashboardClient';
 
 export interface PokerSession {
@@ -22,9 +22,23 @@ export interface RakebackEntry {
 export interface DashboardData {
   sessions: PokerSession[];
   rakebacks: RakebackEntry[];
+  customMonths: string[];
 }
 
 export default async function Page() {
-  const data = await getPokerData();
-  return <DashboardClient initialData={data as DashboardData} />;
+  const [sessions, rakebacks, dbMonths] = await Promise.all([
+    prisma.pokerSession.findMany({ orderBy: { date: 'desc' } }),
+    prisma.rakebackEntry.findMany({ orderBy: { date: 'desc' } }),
+    prisma.month.findMany(),
+  ]);
+
+  const customMonths = dbMonths.map((m) => m.name);
+
+  const data: DashboardData = {
+    sessions,
+    rakebacks,
+    customMonths,
+  };
+
+  return <DashboardClient initialData={data} />;
 }

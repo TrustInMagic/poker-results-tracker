@@ -26,3 +26,10 @@ model RakebackEntry {
   notes     String?
   createdAt DateTime @default(now())
 }
+
+model Month {
+  id        String   @id @default(cuid())
+  name      String   @unique // Format: "YYYY-MM"
+  createdAt DateTime @default(now())
+}
+

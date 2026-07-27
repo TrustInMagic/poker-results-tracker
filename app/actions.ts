@@ -53,3 +53,16 @@ export async function getPokerData() {
 
   return { sessions, rakebacks };
 }
+
+// Then your addMonth action looks clean:
+export async function addMonth(name: string) {
+  const existing = await prisma.month.findUnique({ where: { name } });
+  if (!existing) {
+    await prisma.month.create({
+      data: { name },
+    });
+  }
+  revalidatePath("/");
+}
+
+// ... rest of your actions
