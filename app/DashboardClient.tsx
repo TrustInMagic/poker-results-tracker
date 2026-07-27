@@ -176,7 +176,6 @@ export default function DashboardClient({
 
       {/* Navigation Layout */}
       <div className='flex flex-wrap items-center justify-between border-b border-slate-800 mb-6 pb-2 gap-2'>
-        {/* Distinct Lifetime Overview Tab Component */}
         <button
           onClick={() => setActiveTab('overall')}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition border ${
@@ -194,7 +193,6 @@ export default function DashboardClient({
           <span>Lifetime Overview</span>
         </button>
 
-        {/* Monthly Tabs Group */}
         <div className='flex gap-2 overflow-x-auto items-center'>
           <span className='text-xs uppercase text-slate-600 font-bold px-2 tracking-wider'>
             Months:
@@ -224,7 +222,7 @@ export default function DashboardClient({
       <div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
         {/* Left Column */}
         <div className='lg:col-span-2 space-y-6'>
-          {/* Dynamic Graph Styles (Lifetime vs Monthly) */}
+          {/* Dynamic Graph */}
           <div className='bg-slate-900/50 border border-slate-800/80 rounded-xl p-5 backdrop-blur'>
             <h2 className='text-sm font-semibold uppercase text-slate-400 mb-4 flex items-center justify-between'>
               <span>
@@ -242,7 +240,6 @@ export default function DashboardClient({
               <ResponsiveContainer width='100%' height='100%'>
                 <AreaChart data={chartData}>
                   <defs>
-                    {/* Unique gradient styling for Lifetime vs Monthly */}
                     <linearGradient
                       id={
                         activeTab === 'overall'
@@ -379,6 +376,8 @@ export default function DashboardClient({
                   <tr className='bg-slate-800/40 text-slate-200'>
                     <td className='px-6 py-3 font-bold'>TOTALS</td>
                     <td className='px-6 py-3'></td>
+                    <td className='px-6 py-3'></td>
+                    <td className='px-6 py-3'></td>
                     <td
                       className={`px-6 py-3 text-right font-bold ${rawSessionProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
                     >
@@ -393,6 +392,8 @@ export default function DashboardClient({
                   <tr>
                     <th className='px-6 py-4'>Date</th>
                     <th className='px-6 py-4'>Stake</th>
+                    <th className='px-6 py-4 text-right'>Starting Bankroll</th>
+                    <th className='px-6 py-4 text-right'>Ending Bankroll</th>
                     <th className='px-6 py-4 text-right'>Profit</th>
                     <th className='px-6 py-4 text-right'>Hours</th>
                     {activeTab !== 'overall' && (
@@ -404,7 +405,7 @@ export default function DashboardClient({
                   {filteredSessions.length === 0 && (
                     <tr>
                       <td
-                        colSpan={activeTab === 'overall' ? 4 : 5}
+                        colSpan={activeTab === 'overall' ? 6 : 7}
                         className='px-6 py-8 text-center text-slate-500'
                       >
                         No sessions recorded.
@@ -428,6 +429,12 @@ export default function DashboardClient({
                         <td className='px-6 py-4 font-medium text-slate-200'>
                           {session.stake}
                         </td>
+                        <td className='px-6 py-4 text-right text-slate-300'>
+                          ${session.startingBalance.toFixed(2)}
+                        </td>
+                        <td className='px-6 py-4 text-right text-slate-300'>
+                          ${session.endingBalance.toFixed(2)}
+                        </td>
                         <td
                           className={`px-6 py-4 text-right font-medium ${profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
                         >
@@ -436,7 +443,6 @@ export default function DashboardClient({
                         <td className='px-6 py-4 text-right text-slate-300'>
                           {session.hoursPlayed}h
                         </td>
-                        {/* Action column hidden strictly on Lifetime tab */}
                         {activeTab !== 'overall' && (
                           <td className='px-6 py-4 text-center flex justify-center'>
                             <button
@@ -512,7 +518,6 @@ export default function DashboardClient({
                       <td className='px-6 py-4 text-right font-medium text-emerald-400'>
                         +${rakeback.amount.toFixed(2)}
                       </td>
-                      {/* Action column hidden strictly on Lifetime tab */}
                       {activeTab !== 'overall' && (
                         <td className='px-6 py-4 text-center flex justify-center'>
                           <button
@@ -702,3 +707,4 @@ export default function DashboardClient({
     </div>
   );
 }
+
