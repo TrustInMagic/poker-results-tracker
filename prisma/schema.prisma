@@ -1,0 +1,28 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // Or "sqlite"
+}
+
+model PokerSession {
+  id             String   @id @default(cuid())
+  date           DateTime
+  stake          String
+  startingBalance Float
+  endingBalance   Float
+  hoursPlayed     Float
+  notes          String?
+  createdAt      DateTime @default(now())
+}
+
+model RakebackEntry {
+  id        String   @id @default(cuid())
+  date      DateTime
+  amount    Float
+  notes     String?
+  createdAt DateTime @default(now())
+}

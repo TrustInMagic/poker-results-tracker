@@ -1,7 +1,8 @@
-import type { NextConfig } from "next";
+// next.config.mjs (or .js / .ts)
 
-const nextConfig: NextConfig = {
-  /* config options here */
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  allowedDevOrigins: ['192.168.0.21'], // Add your device's local IP here
 };
 
 export default nextConfig;
