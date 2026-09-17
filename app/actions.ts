@@ -4,14 +4,44 @@
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 
+function parseHoursPlayed(formData: FormData): number {
+  const hours = parseFloat(formData.get('hours') as string) || 0;
+  const minutes = parseFloat(formData.get('minutes') as string) || 0;
+  const clampedMinutes = Math.min(Math.max(minutes, 0), 59);
+  return hours + clampedMinutes / 60;
+}
+
+function monthDateRange(name: string) {
+  const start = new Date(`${name}-01T00:00:00.000Z`);
+  const end = new Date(start);
+  end.setUTCMonth(end.getUTCMonth() + 1);
+  return { start, end };
+}
+
 export async function addSession(formData: FormData) {
   const date = new Date(formData.get('date') as string);
   const stake = formData.get('stake') as string;
   const startingBalance = parseFloat(formData.get('startingBalance') as string);
   const endingBalance = parseFloat(formData.get('endingBalance') as string);
-  const hoursPlayed = parseFloat(formData.get('hoursPlayed') as string);
+  const hoursPlayed = parseHoursPlayed(formData);
 
   await prisma.pokerSession.create({
+    data: { date, stake, startingBalance, endingBalance, hoursPlayed },
+  });
+
+  revalidatePath('/');
+}
+
+export async function updateSession(formData: FormData) {
+  const id = formData.get('id') as string;
+  const date = new Date(formData.get('date') as string);
+  const stake = formData.get('stake') as string;
+  const startingBalance = parseFloat(formData.get('startingBalance') as string);
+  const endingBalance = parseFloat(formData.get('endingBalance') as string);
+  const hoursPlayed = parseHoursPlayed(formData);
+
+  await prisma.pokerSession.update({
+    where: { id },
     data: { date, stake, startingBalance, endingBalance, hoursPlayed },
   });
 
@@ -54,7 +84,6 @@ export async function getPokerData() {
   return { sessions, rakebacks };
 }
 
-// Then your addMonth action looks clean:
 export async function addMonth(name: string) {
   const existing = await prisma.month.findUnique({ where: { name } });
   if (!existing) {
@@ -62,7 +91,21 @@ export async function addMonth(name: string) {
       data: { name },
     });
   }
-  revalidatePath("/");
+  revalidatePath('/');
 }
 
-// ... rest of your actions
+export async function deleteMonth(name: string) {
+  const { start, end } = monthDateRange(name);
+
+  await prisma.$transaction([
+    prisma.pokerSession.deleteMany({
+      where: { date: { gte: start, lt: end } },
+    }),
+    prisma.rakebackEntry.deleteMany({
+      where: { date: { gte: start, lt: end } },
+    }),
+    prisma.month.deleteMany({ where: { name } }),
+  ]);
+
+  revalidatePath('/');
+}

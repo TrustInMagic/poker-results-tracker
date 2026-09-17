@@ -10,16 +10,22 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { Trash2, Globe } from 'lucide-react';
+import { Trash2, Globe, Pencil } from 'lucide-react';
 import {
   addSession,
+  updateSession,
   addRakeback,
   deleteSession,
   deleteRakeback,
   addMonth,
+  deleteMonth,
 } from './actions';
-import { DashboardData } from './page';
-import { calculateStakeStats } from '@/lib/utils';
+import { DashboardData, PokerSession } from './page';
+import {
+  calculateStakeStats,
+  formatDuration,
+  hoursToParts,
+} from '@/lib/utils';
 
 export default function DashboardClient({
   initialData,
@@ -28,6 +34,9 @@ export default function DashboardClient({
 }) {
   const [activeTab, setActiveTab] = useState<string>('overall');
   const [isSessionModalOpen, setSessionModalOpen] = useState(false);
+  const [editingSession, setEditingSession] = useState<PokerSession | null>(
+    null,
+  );
   const [isRakebackModalOpen, setRakebackModalOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -78,6 +87,45 @@ export default function DashboardClient({
       });
     }
   };
+
+  const handleDeleteMonth = (month: string) => {
+    if (
+      confirm(
+        `Delete ${month}? This removes the month tab and any sessions or rakeback logged in that month.`,
+      )
+    ) {
+      startTransition(async () => {
+        await deleteMonth(month);
+        if (activeTab === month) {
+          setActiveTab('overall');
+        }
+      });
+    }
+  };
+
+  const openNewSessionModal = () => {
+    setEditingSession(null);
+    setSessionModalOpen(true);
+  };
+
+  const openEditSessionModal = (session: PokerSession) => {
+    setEditingSession(session);
+    setSessionModalOpen(true);
+  };
+
+  const closeSessionModal = () => {
+    setSessionModalOpen(false);
+    setEditingSession(null);
+  };
+
+  const toDateInputValue = (date: Date | string) => {
+    const d = new Date(date);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  const sessionDurationParts = editingSession
+    ? hoursToParts(editingSession.hoursPlayed)
+    : { hours: '', minutes: '' };
 
   // --- DATA FILTERING LOGIC ---
   const filteredSessions =
@@ -160,7 +208,7 @@ export default function DashboardClient({
           {activeTab !== 'overall' && (
             <>
               <button
-                onClick={() => setSessionModalOpen(true)}
+                onClick={openNewSessionModal}
                 className='bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition shadow-lg shadow-emerald-900/20'
               >
                 + Add Session
@@ -200,17 +248,33 @@ export default function DashboardClient({
             Months:
           </span>
           {allMonths.map((month) => (
-            <button
+            <div
               key={month}
-              onClick={() => setActiveTab(month)}
-              className={`px-4 py-2 font-medium text-sm rounded-t-lg transition ${
+              className={`flex items-center rounded-t-lg ${
                 activeTab === month
-                  ? 'bg-slate-900 text-emerald-400 border-b-2 border-emerald-500'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-slate-900 border-b-2 border-emerald-500'
+                  : ''
               }`}
             >
-              {month}
-            </button>
+              <button
+                onClick={() => setActiveTab(month)}
+                className={`px-4 py-2 font-medium text-sm transition ${
+                  activeTab === month
+                    ? 'text-emerald-400'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {month}
+              </button>
+              <button
+                onClick={() => handleDeleteMonth(month)}
+                disabled={isPending}
+                title={`Delete ${month}`}
+                className='pr-2 text-slate-600 hover:text-red-400 transition'
+              >
+                <Trash2 size={12} />
+              </button>
+            </div>
           ))}
           <button
             onClick={handleAddMonth}
@@ -345,8 +409,8 @@ export default function DashboardClient({
                         {stat.netWinnings >= 0 ? '+' : ''}$
                         {stat.netWinnings.toFixed(2)}
                       </td>
-                      <td className='px-6 py-4 text-right text-slate-300'>
-                        {stat.totalHours.toFixed(1)}h
+                      <td className='px-6 py-4 text-right text-slate-300 whitespace-nowrap'>
+                        {formatDuration(stat.totalHours)}
                       </td>
                       <td
                         className={`px-6 py-4 text-right font-medium ${stat.hourlyRate >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
@@ -373,46 +437,42 @@ export default function DashboardClient({
                 </span>
               )}
             </div>
-            <div className='overflow-x-auto'>
-              <table className='w-full text-sm text-left'>
+            <div className='overflow-hidden'>
+              <table className='w-full text-sm text-left table-fixed'>
                 <thead className='bg-slate-950 text-slate-400 uppercase font-medium text-xs border-b border-slate-800'>
                   <tr className='bg-slate-800/40 text-slate-200'>
-                    <td className='px-6 py-3 font-bold'>TOTALS</td>
-                    <td className='px-6 py-3'></td>
+                    <td className='px-3 py-3 font-bold'>TOTALS</td>
+                    <td className='px-3 py-3'></td>
                     {activeTab !== 'overall' && (
                       <>
-                        <td className='px-6 py-3'></td>
-                        <td className='px-6 py-3'></td>
+                        <td className='px-3 py-3'></td>
+                        <td className='px-3 py-3'></td>
                       </>
                     )}
                     <td
-                      className={`px-6 py-3 text-right font-bold ${rawSessionProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
+                      className={`px-3 py-3 text-right font-bold whitespace-nowrap ${rawSessionProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
                     >
                       {rawSessionProfit >= 0 ? '+' : ''}$
                       {rawSessionProfit.toFixed(2)}
                     </td>
-                    <td className='px-6 py-3 text-right font-bold text-slate-200'>
-                      {totalSessionHours.toFixed(1)}h
+                    <td className='px-3 py-3 text-right font-bold text-slate-200 whitespace-nowrap'>
+                      {formatDuration(totalSessionHours)}
                     </td>
-                    {activeTab !== 'overall' && <td className='px-6 py-3'></td>}
+                    {activeTab !== 'overall' && <td className='px-3 py-3'></td>}
                   </tr>
                   <tr>
-                    <th className='px-6 py-4'>Date</th>
-                    <th className='px-6 py-4'>Stake</th>
+                    <th className='px-3 py-3'>Date</th>
+                    <th className='px-3 py-3'>Stake</th>
                     {activeTab !== 'overall' && (
                       <>
-                        <th className='px-6 py-4 text-right'>
-                          Starting Bankroll
-                        </th>
-                        <th className='px-6 py-4 text-right'>
-                          Ending Bankroll
-                        </th>
+                        <th className='px-3 py-3 text-right'>Start</th>
+                        <th className='px-3 py-3 text-right'>End</th>
                       </>
                     )}
-                    <th className='px-6 py-4 text-right'>Profit</th>
-                    <th className='px-6 py-4 text-right'>Hours</th>
+                    <th className='px-3 py-3 text-right'>Profit</th>
+                    <th className='px-3 py-3 text-right'>Hours</th>
                     {activeTab !== 'overall' && (
-                      <th className='px-6 py-4 text-center'>Action</th>
+                      <th className='px-3 py-3 text-center w-16'>Action</th>
                     )}
                   </tr>
                 </thead>
@@ -421,7 +481,7 @@ export default function DashboardClient({
                     <tr>
                       <td
                         colSpan={activeTab === 'overall' ? 4 : 7}
-                        className='px-6 py-8 text-center text-slate-500'
+                        className='px-3 py-8 text-center text-slate-500'
                       >
                         No sessions recorded.
                       </td>
@@ -435,42 +495,53 @@ export default function DashboardClient({
                         key={session.id}
                         className='hover:bg-slate-800/20 transition'
                       >
-                        <td className='px-6 py-4 text-slate-300 whitespace-nowrap'>
+                        <td className='px-3 py-3 text-slate-300 whitespace-nowrap'>
                           {new Date(session.date).toLocaleDateString(
                             undefined,
                             { month: 'short', day: 'numeric', year: 'numeric' },
                           )}
                         </td>
-                        <td className='px-6 py-4 font-medium text-slate-200'>
+                        <td className='px-3 py-3 font-medium text-slate-200 truncate'>
                           {session.stake}
                         </td>
                         {activeTab !== 'overall' && (
                           <>
-                            <td className='px-6 py-4 text-right text-slate-300'>
+                            <td className='px-3 py-3 text-right text-slate-300 whitespace-nowrap'>
                               ${session.startingBalance.toFixed(2)}
                             </td>
-                            <td className='px-6 py-4 text-right text-slate-300'>
+                            <td className='px-3 py-3 text-right text-slate-300 whitespace-nowrap'>
                               ${session.endingBalance.toFixed(2)}
                             </td>
                           </>
                         )}
                         <td
-                          className={`px-6 py-4 text-right font-medium ${profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
+                          className={`px-3 py-3 text-right font-medium whitespace-nowrap ${profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
                         >
                           {profit >= 0 ? '+' : ''}${profit.toFixed(2)}
                         </td>
-                        <td className='px-6 py-4 text-right text-slate-300'>
-                          {session.hoursPlayed}h
+                        <td className='px-3 py-3 text-right text-slate-300 whitespace-nowrap'>
+                          {formatDuration(session.hoursPlayed)}
                         </td>
                         {activeTab !== 'overall' && (
-                          <td className='px-6 py-4 text-center flex justify-center'>
-                            <button
-                              onClick={() => handleDeleteSession(session.id)}
-                              disabled={isPending}
-                              className='text-slate-500 hover:text-red-400 transition'
-                            >
-                              <Trash2 size={16} />
-                            </button>
+                          <td className='px-3 py-3'>
+                            <div className='flex items-center justify-center gap-1'>
+                              <button
+                                onClick={() => openEditSessionModal(session)}
+                                disabled={isPending}
+                                title='Edit session'
+                                className='p-1 rounded-md text-slate-500 hover:text-emerald-400 hover:bg-slate-800 transition disabled:opacity-50'
+                              >
+                                <Pencil size={13} strokeWidth={1.75} />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteSession(session.id)}
+                                disabled={isPending}
+                                title='Delete session'
+                                className='p-1 rounded-md text-slate-500 hover:text-red-400 hover:bg-slate-800 transition disabled:opacity-50'
+                              >
+                                <Trash2 size={13} strokeWidth={1.75} />
+                              </button>
+                            </div>
                           </td>
                         )}
                       </tr>
@@ -538,14 +609,17 @@ export default function DashboardClient({
                         +${rakeback.amount.toFixed(2)}
                       </td>
                       {activeTab !== 'overall' && (
-                        <td className='px-6 py-4 text-center flex justify-center'>
-                          <button
-                            onClick={() => handleDeleteRakeback(rakeback.id)}
-                            disabled={isPending}
-                            className='text-slate-500 hover:text-red-400 transition'
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                        <td className='px-6 py-4'>
+                          <div className='flex items-center justify-center'>
+                            <button
+                              onClick={() => handleDeleteRakeback(rakeback.id)}
+                              disabled={isPending}
+                              title='Delete rakeback'
+                              className='p-1 rounded-md text-slate-500 hover:text-red-400 hover:bg-slate-800 transition disabled:opacity-50'
+                            >
+                              <Trash2 size={13} strokeWidth={1.75} />
+                            </button>
+                          </div>
                         </td>
                       )}
                     </tr>
@@ -591,14 +665,24 @@ export default function DashboardClient({
       {isSessionModalOpen && (
         <div className='fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50'>
           <form
+            key={editingSession?.id ?? 'new-session'}
             action={async (formData) => {
-              await addSession(formData);
-              setSessionModalOpen(false);
+              if (editingSession) {
+                await updateSession(formData);
+              } else {
+                await addSession(formData);
+              }
+              closeSessionModal();
             }}
             className='bg-slate-900 p-6 rounded-xl border border-slate-800 w-full max-w-md shadow-2xl'
           >
+            {editingSession && (
+              <input type='hidden' name='id' value={editingSession.id} />
+            )}
             <h2 className='text-xl font-bold mb-4 text-white'>
-              Log Session for {activeTab}
+              {editingSession
+                ? 'Edit Session'
+                : `Log Session for ${activeTab}`}
             </h2>
             <div className='space-y-4 mb-6 text-sm text-slate-300'>
               <label className='block'>
@@ -607,7 +691,11 @@ export default function DashboardClient({
                   type='date'
                   name='date'
                   required
-                  defaultValue={`${activeTab}-01`}
+                  defaultValue={
+                    editingSession
+                      ? toDateInputValue(editingSession.date)
+                      : toDateInputValue(new Date())
+                  }
                   className='w-full mt-1 bg-slate-950 border border-slate-700 rounded-lg p-2 text-white focus:border-emerald-500 focus:outline-none'
                 />
               </label>
@@ -618,6 +706,7 @@ export default function DashboardClient({
                   name='stake'
                   placeholder='e.g. 1/2 NL'
                   required
+                  defaultValue={editingSession?.stake ?? ''}
                   className='w-full mt-1 bg-slate-950 border border-slate-700 rounded-lg p-2 text-white focus:border-emerald-500 focus:outline-none'
                 />
               </label>
@@ -628,6 +717,7 @@ export default function DashboardClient({
                   step='0.01'
                   name='startingBalance'
                   required
+                  defaultValue={editingSession?.startingBalance ?? ''}
                   className='w-full mt-1 bg-slate-950 border border-slate-700 rounded-lg p-2 text-white focus:border-emerald-500 focus:outline-none'
                 />
               </label>
@@ -638,24 +728,40 @@ export default function DashboardClient({
                   step='0.01'
                   name='endingBalance'
                   required
+                  defaultValue={editingSession?.endingBalance ?? ''}
                   className='w-full mt-1 bg-slate-950 border border-slate-700 rounded-lg p-2 text-white focus:border-emerald-500 focus:outline-none'
                 />
               </label>
-              <label className='block'>
-                Hours Played{' '}
-                <input
-                  type='number'
-                  step='0.5'
-                  name='hoursPlayed'
-                  required
-                  className='w-full mt-1 bg-slate-950 border border-slate-700 rounded-lg p-2 text-white focus:border-emerald-500 focus:outline-none'
-                />
-              </label>
+              <div className='grid grid-cols-2 gap-3'>
+                <label className='block'>
+                  Hours{' '}
+                  <input
+                    type='number'
+                    min='0'
+                    step='1'
+                    name='hours'
+                    defaultValue={sessionDurationParts.hours}
+                    className='w-full mt-1 bg-slate-950 border border-slate-700 rounded-lg p-2 text-white focus:border-emerald-500 focus:outline-none'
+                  />
+                </label>
+                <label className='block'>
+                  Minutes{' '}
+                  <input
+                    type='number'
+                    min='0'
+                    max='59'
+                    step='1'
+                    name='minutes'
+                    defaultValue={sessionDurationParts.minutes}
+                    className='w-full mt-1 bg-slate-950 border border-slate-700 rounded-lg p-2 text-white focus:border-emerald-500 focus:outline-none'
+                  />
+                </label>
+              </div>
             </div>
             <div className='flex justify-end gap-3'>
               <button
                 type='button'
-                onClick={() => setSessionModalOpen(false)}
+                onClick={closeSessionModal}
                 className='px-4 py-2 text-slate-400 hover:text-white transition'
               >
                 Cancel
@@ -664,7 +770,7 @@ export default function DashboardClient({
                 type='submit'
                 className='px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition shadow-lg shadow-emerald-900/20'
               >
-                Save Session
+                {editingSession ? 'Update Session' : 'Save Session'}
               </button>
             </div>
           </form>
@@ -690,7 +796,7 @@ export default function DashboardClient({
                   type='date'
                   name='date'
                   required
-                  defaultValue={`${activeTab}-01`}
+                  defaultValue={toDateInputValue(new Date())}
                   className='w-full mt-1 bg-slate-950 border border-slate-700 rounded-lg p-2 text-white focus:border-emerald-500 focus:outline-none'
                 />
               </label>

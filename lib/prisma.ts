@@ -5,15 +5,30 @@ import { PrismaPg } from '@prisma/adapter-pg';
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
+  pool: Pool | undefined;
+  poolErrorBound: boolean | undefined;
 };
 
-// Setup the PostgreSQL driver adapter
 const connectionString = process.env.DATABASE_URL;
-const pool = new Pool({ connectionString });
-const adapter = new PrismaPg(pool);
 
-export const prisma = globalForPrisma.prisma ?? new PrismaClient({ adapter });
+if (!globalForPrisma.pool || !globalForPrisma.prisma) {
+  globalForPrisma.pool = new Pool({
+    connectionString,
+    max: 5,
+    idleTimeoutMillis: 10_000,
+    keepAlive: true,
+  });
+  globalForPrisma.prisma = new PrismaClient({
+    adapter: new PrismaPg(globalForPrisma.pool),
+  });
+}
 
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma;
+const pool = globalForPrisma.pool;
+export const prisma = globalForPrisma.prisma;
+
+if (!globalForPrisma.poolErrorBound) {
+  globalForPrisma.poolErrorBound = true;
+  pool.on('error', () => {
+    // Prevent unhandled idle-client errors from crashing the process.
+  });
 }

@@ -56,3 +56,18 @@ export function calculateStakeStats(
     };
   });
 }
+
+export function hoursToParts(hoursPlayed: number) {
+  const totalMinutes = Math.round(hoursPlayed * 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return { hours, minutes };
+}
+
+export function formatDuration(hoursPlayed: number) {
+  const { hours, minutes } = hoursToParts(hoursPlayed);
+  if (hours === 0 && minutes === 0) return '0min';
+  if (hours === 0) return `${minutes}min`;
+  if (minutes === 0) return `${hours}h`;
+  return `${hours}h ${minutes}min`;
+}

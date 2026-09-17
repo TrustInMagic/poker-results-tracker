@@ -2,7 +2,7 @@
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  allowedDevOrigins: ['192.168.0.21'], // Add your device's local IP here
+  allowedDevOrigins: ['192.168.0.21', '192.168.1.67'],
 };
 
 export default nextConfig;
